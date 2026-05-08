@@ -184,13 +184,41 @@
 
   function insertToolbar() {
     const toolbar = document.createElement("div");
-    toolbar.className = "study-toolbar";
-    toolbar.innerHTML = '<label><input type="checkbox" id="study-show-mastered">显示程度 5</label><span class="study-hint">左滑记住，右滑评分</span>';
+    toolbar.className = "study-toolbar is-expanded";
+    toolbar.innerHTML = '<button type="button" class="study-toolbar-toggle" aria-expanded="true">设置</button><div class="study-toolbar-panel"><label><input type="checkbox" id="study-show-mastered">显示程度 5</label><span class="study-hint">左滑记住，右滑评分</span></div>';
     const input = toolbar.querySelector("input");
+    const toggle = toolbar.querySelector(".study-toolbar-toggle");
+    let manualStickyExpanded = false;
+
+    function setCollapsed(collapsed) {
+      toolbar.classList.toggle("is-collapsed", collapsed);
+      toolbar.classList.toggle("is-expanded", !collapsed);
+      if (collapsed) toolbar.classList.remove("is-sticky-expanded");
+      toggle.setAttribute("aria-expanded", String(!collapsed));
+    }
+
+    function syncStickyState() {
+      const atTop = window.scrollY < 24;
+      toolbar.classList.toggle("is-sticky-expanded", !atTop && !toolbar.classList.contains("is-collapsed"));
+      if (atTop) {
+        manualStickyExpanded = false;
+        setCollapsed(false);
+        toolbar.classList.remove("is-sticky-expanded");
+      } else if (!manualStickyExpanded) {
+        setCollapsed(true);
+      }
+    }
+
     input.checked = showMastered();
     input.addEventListener("change", () => {
       localStorage.setItem(SHOW_MASTERED_KEY, input.checked ? "1" : "0");
       document.querySelectorAll(".study-item").forEach((item) => applyLevel(item, Number(item.dataset.studyLevel || 0)));
+    });
+    toggle.addEventListener("click", () => {
+      const willExpand = toolbar.classList.contains("is-collapsed");
+      manualStickyExpanded = willExpand;
+      setCollapsed(!willExpand);
+      toolbar.classList.toggle("is-sticky-expanded", willExpand && window.scrollY >= 24);
     });
     const h1 = document.querySelector("h1");
     if (h1 && h1.parentNode) {
@@ -198,6 +226,8 @@
     } else {
       document.body.insertBefore(toolbar, document.body.firstChild);
     }
+    syncStickyState();
+    window.addEventListener("scroll", syncStickyState, { passive: true });
   }
 
   function insertBackTop() {
